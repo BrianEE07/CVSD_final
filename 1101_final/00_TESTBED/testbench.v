@@ -1,7 +1,7 @@
 `timescale 1ns/10ps
-`define CYCLE    5.4           	       // Modify your clock period here
+`define CYCLE    7.0          	       // Modify your clock period here
 `define SDFFILE  "GSIM_syn.sdf"	               // Modify your sdf file name
-`define MAX_CYCLE   100000000
+`define MAX_CYCLE   1000000
 `define RST_DELAY   1
 `define DEL 1
 
@@ -18,6 +18,10 @@
     `define INFILE "../00_TESTBED/PATTERN/indata3.dat"
     `define GOLDEN "../00_TESTBED/PATTERN/golden3.dat"
     `define MATRIXNUM 31
+`elsif tb4
+    `define INFILE "../00_TESTBED/PATTERN/indata4.dat"
+    `define GOLDEN "../00_TESTBED/PATTERN/golden4.dat"
+    `define MATRIXNUM 3
 `else
     `define INFILE "../00_TESTBED/PATTERN/indata0.dat"
     `define GOLDEN "../00_TESTBED/PATTERN/golden0.dat"
@@ -57,7 +61,7 @@ reg mem_dout_vld_t1;
 integer i, j, k;
 
 always @(negedge clk) begin
-    if (~x_wen) begin
+    if (x_wen) begin
         x_out [x_addr] <= x_data;
     end
 end
@@ -150,8 +154,8 @@ initial begin
     while (proc_done) begin
         @(posedge clk);
     end
+    fail = 0;
     for (i = 0; i < matrix_num; i = i + 1) begin
-        fail = 0;
         for (j = 0; j < 16 && ~fail; j = j + 1) begin    
             if (x_golden [i*16+j] !== x_out [i*16+j]) begin
                 fail = 1;
@@ -160,6 +164,7 @@ initial begin
                     $display ("Expected output : %h Your output %h\n", x_golden [i*16+k], x_out [i*16+k]);
                 end
             end
+
         end
     end
     if (!fail) begin
