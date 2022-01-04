@@ -1,10 +1,10 @@
 `timescale 1ns/10ps
-`define CYCLE    7.0          	       // Modify your clock period here
+`define CYCLE    10.0          	       // Modify your clock period here
 `define SDFFILE  "GSIM_syn.sdf"	               // Modify your sdf file name
 `define MAX_CYCLE   1000000
 `define RST_DELAY   1
-`define DEL 1
-
+`define DEL_I 1
+`define DEL_O 0.5
 
 `ifdef tb1
     `define INFILE "../00_TESTBED/PATTERN/indata1.dat"
@@ -55,12 +55,14 @@ reg fail;
 reg rrdy_r;
 reg [9:0] mem_addr_w;
 reg mem_rreq_w;
+reg dout_vld_r, dout_vld_w;
 wire [255:0] matrix_data_w;
-reg mem_dout_vld_t1;
 
 integer i, j, k;
 
-always @(negedge clk) begin
+
+always @(posedge clk) begin
+    #(`CYCLE-`DEL_O);
     if (x_wen) begin
         x_out [x_addr] <= x_data;
     end
@@ -77,6 +79,10 @@ end
 // Write out waveform file
 initial begin
 `ifdef VCS
+`elsif SDF
+  $fsdbDumpfile("gsim.fsdb");
+  $fsdbDumpvars(1, "+mda");
+  $fsdbDumpMDA;
 `else
   $fsdbDumpfile("gsim.fsdb");
   $fsdbDumpvars(0, "+mda");
@@ -98,7 +104,7 @@ GSIM u_GSIM(
 	.o_mem_addr(mem_addr),
 	.i_mem_rrdy(mem_rrdy),
     .i_mem_dout(mem_dout),
-    .i_mem_dout_vld(mem_dout_vld_t1),
+    .i_mem_dout_vld(mem_dout_vld),
 
     .o_x_wen(x_wen),
 	.o_x_addr(x_addr),
@@ -126,25 +132,26 @@ initial begin
     matrix_num = 0;
     mem_rrdy =1;
     mem_dout_vld = 0;
+    mem_dout = 0;   
     task_reset;
 
     # 1000;
     @(posedge clk);
-    #`DEL;
+    #`DEL_I;
     module_en  = 1;
     matrix_num = `MATRIXNUM;
     mem_rrdy   = rrdy_r;
 
     while (!proc_done) begin
         @(posedge clk);
-        #`DEL; 
+        #`DEL_I; 
         mem_rrdy = rrdy_r;
-        if (mem_rreq && rrdy_r) mem_dout_vld = 1;
-        else mem_dout_vld = 0;
+        mem_dout_vld = dout_vld_r;
+        mem_dout = (dout_vld_r)? matrix_data_w : 0;
 
     end
     @(posedge clk);
-    #`DEL module_en = 0;
+    #`DEL_I module_en = 0;
     
     if (proc_done == 1'b0) begin
         $display (" ------ Error: You can't pull down o_proc_done before i_module_en = 0!! ------ ");
@@ -189,37 +196,24 @@ end
 initial begin
     mem_addr_w = 0;
     mem_rreq_w = 0;
+    dout_vld_w = 0;
     while (module_en == 1'b0) begin
         @(posedge clk);
     end
-    #`DEL;
+    #(`CYCLE-`DEL_O);
     mem_addr_w = mem_addr;
     mem_rreq_w = mem_rreq;
+    if (mem_rreq && rrdy_r) dout_vld_w = 1;
+    else dout_vld_w = 0;
     while (module_en == 1'b1)begin
         @(posedge clk);
-        #`DEL;
+        #(`CYCLE-`DEL_O);
         mem_addr_w = mem_addr;
         mem_rreq_w = mem_rreq;
+        if (mem_rreq && rrdy_r) dout_vld_w = 1;
+        else dout_vld_w = 0;
     end
 
-end
-
-initial begin
-    mem_dout_vld_t1 = 0;
-    while (module_en == 1'b0) begin
-        @(posedge clk);
-    end
-    mem_dout_vld_t1 = #(`DEL) mem_dout_vld;
-    while (module_en == 1'b1) begin
-        @(posedge clk);
-        mem_dout_vld_t1 = #(`DEL) mem_dout_vld;
-    end
-
-end
-
-
-always @(*) begin 
-    mem_dout   = (mem_dout_vld_t1)? matrix_data_w : 0;
 end
 
 // Reset generation
@@ -230,10 +224,17 @@ task task_reset; begin
         reset = 0;    
 end endtask
 
+// i_dout_vld simulation 
+always @(posedge clk or posedge reset)  begin
+    if(reset)    dout_vld_r <= 0;
+    else dout_vld_r <= dout_vld_w;
+end
+
+
 // i_mem_rrdy simulation (modify here)
 always @(posedge clk or posedge reset)  begin
     if(reset)    rrdy_r <= 1;
-    else rrdy_r <= 1;
+     else rrdy_r <= 1;
 end
 
 
@@ -264,10 +265,7 @@ module matrix_mem (
 
 	always@(posedge i_clk or posedge i_rst) begin
 		if(i_rst)    data_r <= {256{1'b0}};
-		else         data_r <= #(`DEL)  data_w;
+		else         data_r <=  data_w;
 	end
-
-
-
 
 endmodule
