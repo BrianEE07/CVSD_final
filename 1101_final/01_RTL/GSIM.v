@@ -39,7 +39,7 @@ reg [31:0] o_x_data_r, o_x_data_w;
 
 // control
 reg [2:0] state_r, state_w;			// state
-reg [4:0] mat_cnt_r, mat_cnt_w;     // counter of quetion number
+reg [4:0] mat_cnt_r, mat_cnt_w;     // counter of question number
 reg [3:0] iter_cnt_r, iter_cnt_w;	// counter of iteration times
 reg [4:0] col_cnt_r, col_cnt_w;		// counter of which col does it process 
 
@@ -70,6 +70,8 @@ assign o_x_data    = o_x_data_r;
 
 // multipiler
 for (i = 0; i < 15; i = i + 1) begin
+	// TODO
+	// integer asymmetric saturation / fractional truncation ??
 	assign multiplier_output[i] = multiplier_in1[i]*multpilier_in2[i];
 end
 
@@ -79,13 +81,8 @@ end
 always @(*) begin
 	state_w = state_r;
 	case (state_r)
-		S_IDLE: begin
-			if (i_module_en) state_w = S_INIT;
-		end
-		S_INIT: begin
-			// after reading 1/a11~1/a1616 and b_row
-			if (i_mem_dout_vld && col_cnt_r == 16) state_w = S_CALC_TERMS;
-		end
+		S_IDLE: if (i_module_en) state_w = S_INIT;
+		S_INIT: if (i_mem_dout_vld && !col_cnt_r) state_w = S_CALC_TERMS; // after reading 1/a11~1/a1616 and b_row
 		// S_WAIT: begin
 			
 		// end
@@ -113,9 +110,7 @@ always @(*) begin
 		// S_OUTPUT: begin
 			
 		// end
-		S_FINISH: begin
-			if (!i_module_en) state_w = S_IDLE;
-		end
+		S_FINISH: if (!i_module_en) state_w = S_IDLE;
 		default: ;
 	endcase
 end
@@ -131,15 +126,15 @@ always @(*) begin
 		S_IDLE: begin
 			mat_cnt_w  = 0;
 			iter_cnt_w = 0;
-			col_cnt_w  = 0;
+			col_cnt_w  = (i_module_en) ? 16 : 0;
 		end
 		S_INIT: begin
 			if (i_mem_dout_vld) begin
-				if (col_cnt_r == 16) begin
+				if (!col_cnt_r) begin
 					col_cnt_w = 1; // since starting from x2
 				end
 				else begin
-					col_cnt_w = col_cnt_r + 1;
+					col_cnt_w = col_cnt_r - 1;
 				end
 			end	
 		end
@@ -183,6 +178,8 @@ end
 // Combinational Blocks
 // ---------------------------------------------------------------------------
 always @(*) begin
+	// TODO
+	// mem_rreq control
 	o_proc_done_w = 0;
 	o_mem_rreq_w  = o_mem_rreq_r;
 	o_x_wen_w     = 0;
@@ -191,26 +188,61 @@ always @(*) begin
 		x_w[i] = x_r[i];
 		b_w[i] = b_r[i];
 	end
+	for (i = 0; i < 15; i = i + 1) begin
+		multiplier_in1[i] = 0;
+		multiplier_in2[i] = 0;
+	end
 	case (state_r)
 		S_IDLE: ;
 		S_INIT: begin
-			
+			if (i_mem_dout_vld) begin
+				if (col_cnt_r == 16) begin
+					for (i = 0;i < 16;i = i + 1) begin
+						b_w[i] = i_mem_dout[16*i +: 16];
+					end
+				end
+				else begin
+					multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
+					multiplier_in2[0] = b_r[col_cnt_r];
+					x_w[col_cnt_r]    = multiplier_output[0]; // b/a
+				end
+			end
 		end
 		// S_WAIT: begin
 			
 		// end
 		S_CALC_TERMS: begin
-			
+			if (i_mem_dout_vld) begin
+				for (i = 0;i < 16;i = i + 1) begin
+					if (i < col_cnt_r) begin
+						multiplier_in1[i] = i_mem_dout[16*i +: 16];
+						multiplier_in2[i] = x_r[col_cnt_r];
+						x_w[i] 			  = x_r[i] - multiplier_output[i];
+					end
+					else if (i > col_cnt_r && iter_cnt_r) begin // first iteration skip this part
+						multiplier_in1[i - 1] = i_mem_dout[16*i +: 16];
+						multiplier_in2[i - 1] = x_r[col_cnt_r];
+						x_w[i] 			      = x_r[i] - multiplier_output[i - 1];
+					end
+				end
+			end
 		end
 		S_CALC_NEW: begin
-			
+			if (i_mem_dout_vld) begin
+				multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
+				multiplier_in2[0] = x_r[col_cnt_r] + b_r[col_cnt_r];
+				x_w[col_cnt_r]    = multiplier_output[0]; // (x+b)/a
+				// output
+				if (iter_cnt_r == 15) begin
+					o_x_wen_w  = 1;
+					o_x_data_w = multiplier_output[0];
+				end
+			end
 		end
 		// S_OUTPUT: begin
 			
 		// end
-		S_FINISH: begin
-			o_proc_done_w = i_module_en;
-		end
+		S_FINISH: o_proc_done_w = i_module_en;
 		default: 
 	endcase
 end
