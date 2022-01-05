@@ -93,7 +93,7 @@ always @(*) begin
 			// when iter=0, first 15 cycles(x2~x16) needed for calc_term
 			// else, calc_term & calc_new take turns every 1 cycle (after read success)
 			if (i_mem_dout_vld) begin
-				if (iter_cnt_r || (!iter_cnt_r && col_cnt_r == 15))) begin
+				if (iter_cnt_r || (!iter_cnt_r && col_cnt_r == 15)) begin
 					state_w = S_CALC_NEW;
 				end
 			end
