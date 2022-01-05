@@ -1,3 +1,4 @@
+// `timescale 1ns/100ps
 module GSIM (                       //Don't modify interface
 	input          i_clk,
 	input          i_reset,
@@ -51,10 +52,14 @@ reg signed [15:0] b_w [0:15];				// array of b
 
 // multipiler
 reg signed [15:0] multiplier_in1 [0:14];	// array of multiplier
-reg signed [31:0] multpilier_in2 [0:14];
+reg signed [31:0] multiplier_in2 [0:14];
 wire signed [47:0] multiplier_output [0:14];
+reg signed [15:0] trunturated4term [0:14];
+reg signed [15:0] trunturated4sum;
+reg signed [15:0] trunturated4new;
 
 integer i;
+genvar j;
 
 // ---------------------------------------------------------------------------
 // Continuous Assignment
@@ -69,12 +74,19 @@ assign o_x_addr    = {mat_cnt_r, 4'b0} + col_cnt_r;
 assign o_x_data    = o_x_data_r;
 
 // multipiler
-for (i = 0; i < 15; i = i + 1) begin
-	// TODO
-	// integer asymmetric saturation / fractional truncation ??
-	assign multiplier_output[i] = multiplier_in1[i]*multpilier_in2[i];
-end
+generate
+	for (j = 0; j < 15; j = j + 1) begin: multipiler_array
+		assign multiplier_output[j] = multiplier_in1[j]*multiplier_in2[j];
+	end
+endgenerate
 
+// ---------------------------------------------------------------------------
+// saturator and truncator
+// ---------------------------------------------------------------------------
+// always @(*) begin
+// 	trunturated4new = 0;
+// 	trunturated4term = 0;
+// end
 // ---------------------------------------------------------------------------
 // FSM
 // ---------------------------------------------------------------------------
@@ -118,6 +130,7 @@ end
 // ---------------------------------------------------------------------------
 // Counter
 // ---------------------------------------------------------------------------
+// [TODO] We should change counter updating stategy, because it will stall 1 cycle now => handshaking
 always @(*) begin
 	mat_cnt_w = mat_cnt_r;
 	iter_cnt_w = iter_cnt_r;
@@ -126,7 +139,7 @@ always @(*) begin
 		S_IDLE: begin
 			mat_cnt_w  = 0;
 			iter_cnt_w = 0;
-			col_cnt_w  = (i_module_en) ? 16 : 0;
+			col_cnt_w  = (i_module_en) ? 5'd16 : 5'd0;
 		end
 		S_INIT: begin
 			if (i_mem_dout_vld) begin
@@ -170,7 +183,7 @@ always @(*) begin
 			
 		// end
 		S_FINISH: ;
-		default: 
+		default: ;
 	endcase
 end
 
@@ -204,6 +217,7 @@ always @(*) begin
 				else begin
 					multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
 					multiplier_in2[0] = b_r[col_cnt_r];
+					// [TODO]: Integer asymmetric saturation
 					x_w[col_cnt_r]    = multiplier_output[0]; // b/a
 				end
 			end
@@ -211,8 +225,9 @@ always @(*) begin
 		// S_WAIT: begin
 			
 		// end
-		S_CALC_TERMS: begin
+		S_CALC_TERMS: begin // [Important] We should think about what is the synthesis result.
 			if (i_mem_dout_vld) begin
+				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
 					if (i < col_cnt_r) begin
 						multiplier_in1[i] = i_mem_dout[16*i +: 16];
@@ -231,7 +246,11 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
 				multiplier_in2[0] = x_r[col_cnt_r] + b_r[col_cnt_r];
+				// [TODO]: Integer asymmetric saturation
 				x_w[col_cnt_r]    = multiplier_output[0]; // (x+b)/a
+				// [TODO]: Integer asymmetric saturation
+				// [TODO]: Fractional truncation
+
 				// output
 				if (iter_cnt_r == 15) begin
 					o_x_wen_w  = 1;
@@ -243,15 +262,15 @@ always @(*) begin
 			
 		// end
 		S_FINISH: o_proc_done_w = i_module_en;
-		default: 
+		default: ;
 	endcase
 end
 
 // ---------------------------------------------------------------------------
 // Sequential Block
 // ---------------------------------------------------------------------------
-always @(posedge i_clk or posedge i_rst) begin
-	if (i_rst) begin
+always @(posedge i_clk or posedge i_reset) begin
+	if (i_reset) begin
 		o_proc_done_r 	<= 0;
 		o_mem_rreq_r 	<= 0;
 		o_x_wen_r 		<= 0;
