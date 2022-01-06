@@ -218,7 +218,7 @@ always @(*) begin
 					multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
 					multiplier_in2[0] = b_r[col_cnt_r];
 					// [TODO]: Integer asymmetric saturation
-					x_w[col_cnt_r]    = multiplier_output[0]; // b/a
+					x_w[col_cnt_r]    = (col_cnt_r) ? multiplier_output[0] : 0; // b/a
 				end
 			end
 		end
@@ -229,7 +229,10 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
-					if (i < col_cnt_r) begin
+					if (i == col_cnt_r) begin // reset zero
+						x_w[i] = 0;
+					end
+					else if (i < col_cnt_r) begin
 						multiplier_in1[i] = i_mem_dout[16*i +: 16];
 						multiplier_in2[i] = x_r[col_cnt_r];
 						x_w[i] 			  = x_r[i] - multiplier_output[i];
