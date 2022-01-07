@@ -31,6 +31,10 @@ localparam S_CALC_NEW = 4;		// calculate new iter. value (+b, *(1/aii))
 // localparam S_OUTPUT = 5;		// write the result to output memory
 localparam S_FINISH = 6;		// assert o_proc_done until i_module_en == 0
 
+// max and min
+localparam MAX_32BITS = 32'h7FFF_FFFF;
+localparam MIN_32BITS = 32'h8000_0000;
+
 // output signal
 reg o_proc_done_r, o_proc_done_w;
 reg o_mem_rreq_r, o_mem_rreq_w;
@@ -54,9 +58,9 @@ reg signed [15:0] b_w [0:15];				// array of b
 reg signed [15:0] multiplier_in1 [0:14];	// array of multiplier
 reg signed [31:0] multiplier_in2 [0:14];
 wire signed [47:0] multiplier_output [0:14];
-reg signed [15:0] trunturated4term [0:14];
-reg signed [15:0] trunturated4sum;
-reg signed [15:0] trunturated4new;
+// truncate and saturate
+reg signed [47:0] truncated [0:14];			// tuncated also means the saturator's input
+reg signed [31:0] saturated [0:14];
 
 integer i;
 genvar j;
@@ -80,13 +84,6 @@ generate
 	end
 endgenerate
 
-// ---------------------------------------------------------------------------
-// saturator and truncator
-// ---------------------------------------------------------------------------
-// always @(*) begin
-// 	trunturated4new = 0;
-// 	trunturated4term = 0;
-// end
 // ---------------------------------------------------------------------------
 // FSM
 // ---------------------------------------------------------------------------
@@ -205,6 +202,9 @@ always @(*) begin
 		multiplier_in1[i] = 0;
 		multiplier_in2[i] = 0;
 	end
+	for (i = 0; i < 15; i = i + 1) begin  // [truncator]
+		truncated[i] = multiplier_output[i];
+	end
 	case (state_r)
 		S_IDLE: ;
 		S_INIT: begin
@@ -217,8 +217,9 @@ always @(*) begin
 				else begin
 					multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
 					multiplier_in2[0] = b_r[col_cnt_r];
-					// [TODO]: Integer asymmetric saturation
-					x_w[col_cnt_r]    = (col_cnt_r) ? multiplier_output[0] : 0; // b/a
+					// truncate (add 2 bits) and saturate
+					truncated[0] = {multiplier_output[0][45:0], 2'b0};
+					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : 48'b0; // b/a
 				end
 			end
 		end
@@ -230,30 +231,31 @@ always @(*) begin
 				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
 					if (i == col_cnt_r) begin // reset zero
-						x_w[i] = 0;
+						x_w[i] = 48'b0;
 					end
 					else if (i < col_cnt_r) begin
 						multiplier_in1[i] = i_mem_dout[16*i +: 16];
 						multiplier_in2[i] = x_r[col_cnt_r];
-						x_w[i] 			  = x_r[i] - multiplier_output[i];
+						x_w[i] 			  = x_r[i] - saturated[i];
 					end
 					else if (i > col_cnt_r && iter_cnt_r) begin // first iteration skip this part
 						multiplier_in1[i - 1] = i_mem_dout[16*i +: 16];
 						multiplier_in2[i - 1] = x_r[col_cnt_r];
-						x_w[i] 			      = x_r[i] - multiplier_output[i - 1];
+						x_w[i] 			      = x_r[i] - saturated[i - 1];
 					end
 				end
 			end
 		end
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
-				multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
-				multiplier_in2[0] = x_r[col_cnt_r] + b_r[col_cnt_r];
-				// [TODO]: Integer asymmetric saturation
-				x_w[col_cnt_r]    = multiplier_output[0]; // (x+b)/a
-				// [TODO]: Integer asymmetric saturation
-				// [TODO]: Fractional truncation
-
+				// plus b and saturate
+				truncated[1] 		= x_r[col_cnt_r] + b_r[col_cnt_r];
+				// multiply 1/a
+				multiplier_in1[0] 	= i_mem_dout[16*col_cnt_r +: 16]; // 1/a
+				multiplier_in2[0] 	= saturated[1];
+				// truncate and saturate
+				truncated[0] 		= {{14{multiplier_output[0][47]}},multiplier_output[0][47:14]};
+				x_w[col_cnt_r]    	= saturated[0]; // (x+b)/a
 				// output
 				if (iter_cnt_r == 15) begin
 					o_x_wen_w  = 1;
@@ -267,6 +269,21 @@ always @(*) begin
 		S_FINISH: o_proc_done_w = i_module_en;
 		default: ;
 	endcase
+end
+
+// saturator
+always @(*) begin	
+	for (i = 0; i < 15; i = i + 1) begin
+		if (truncated[i][47] && ~(&truncated[i][47:31])) begin // negative overflow
+			saturated[i] = MIN_32BITS;
+		end
+		else if (~truncated[i][47] && |truncated[i][47:31]) begin // positive overflow // 47:31(v) or 47:32?
+			saturated[i] = MAX_32BITS;
+		end
+		else begin
+			saturated[i] = truncated[i][31:0];
+		end
+	end
 end
 
 // ---------------------------------------------------------------------------
@@ -283,7 +300,7 @@ always @(posedge i_clk or posedge i_reset) begin
 		iter_cnt_r 		<= 0;
 		col_cnt_r 		<= 0;
 		for (i = 0; i < 16; i = i + 1) begin
-			x_r[i] 		<= 0;
+			x_r[i] 		<= 48'b0;
 			b_r[i] 		<= 0;
 		end
 	end
