@@ -37,7 +37,7 @@ localparam MIN_32BITS = 32'h8000_0000;
 
 // output signal
 reg o_proc_done_r, o_proc_done_w;
-reg o_mem_rreq_r, o_mem_rreq_w;
+// reg o_mem_rreq_r, o_mem_rreq_w;
 reg o_x_wen_r, o_x_wen_w;
 reg [31:0] o_x_data_r, o_x_data_w;
 
@@ -45,8 +45,10 @@ reg [31:0] o_x_data_r, o_x_data_w;
 // control
 reg [2:0] state_r, state_w;			// state
 reg [4:0] mat_cnt_r, mat_cnt_w;     // counter of question number
+reg [4:0] next_mat_cnt_r, next_mat_cnt_w;
 reg [3:0] iter_cnt_r, iter_cnt_w;	// counter of iteration times
 reg [4:0] col_cnt_r, col_cnt_w;		// counter of which col does it process 
+reg [4:0] next_col_cnt_r, next_col_cnt_w;
 
 // storage
 reg signed [36:0] x_r [0:15];				// array of x
@@ -71,10 +73,10 @@ genvar j;
 
 // output signal
 assign o_proc_done = o_proc_done_r;
-assign o_mem_rreq  = o_mem_rreq_r;
-assign o_mem_addr  = 17*mat_cnt_r + col_cnt_r;
+assign o_mem_rreq  = 1; //o_mem_rreq_r;
+assign o_mem_addr  = {mat_cnt_w, 4'b0} + mat_cnt_w + col_cnt_w;
 assign o_x_wen     = o_x_wen_r;
-assign o_x_addr    = {mat_cnt_r, 4'b0} + col_cnt_r;
+assign o_x_addr    = {mat_cnt_w, 4'b0} + col_cnt_w;
 assign o_x_data    = o_x_data_r;
 
 // multipiler
@@ -191,7 +193,7 @@ always @(*) begin
 	// TODO
 	// mem_rreq control
 	o_proc_done_w = 0;
-	o_mem_rreq_w  = o_mem_rreq_r;
+	// o_mem_rreq_w  = o_mem_rreq_r;
 	o_x_wen_w     = 0;
 	o_x_data_w    = o_x_data_r;
 	for (i = 0; i < 16; i = i + 1) begin
@@ -292,7 +294,7 @@ end
 always @(posedge i_clk or posedge i_reset) begin
 	if (i_reset) begin
 		o_proc_done_r 	<= 0;
-		o_mem_rreq_r 	<= 0;
+		// o_mem_rreq_r 	<= 0;
 		o_x_wen_r 		<= 0;
 		o_x_data_r 		<= 0;
 		state_r 		<= S_IDLE;
@@ -306,7 +308,7 @@ always @(posedge i_clk or posedge i_reset) begin
 	end
 	else begin
 		o_proc_done_r 	<= o_proc_done_w;
-		o_mem_rreq_r 	<= o_mem_rreq_w;
+		// o_mem_rreq_r 	<= o_mem_rreq_w;
 		o_x_wen_r 		<= o_x_wen_w;
 		o_x_data_r 		<= o_x_data_w;
 		state_r 		<= state_w;
