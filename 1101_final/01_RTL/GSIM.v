@@ -39,6 +39,7 @@ localparam MIN_32BITS = 32'h8000_0000;
 reg o_proc_done_r, o_proc_done_w;
 // reg o_mem_rreq_r, o_mem_rreq_w;
 reg o_x_wen_r, o_x_wen_w;
+reg [8:0]  o_x_addr_r, o_x_addr_w;
 reg [31:0] o_x_data_r, o_x_data_w;
 
 
@@ -76,7 +77,7 @@ assign o_proc_done = o_proc_done_r;
 assign o_mem_rreq  = 1; //o_mem_rreq_r;
 assign o_mem_addr  = {mat_cnt_w, 4'b0} + mat_cnt_w + col_cnt_w;
 assign o_x_wen     = o_x_wen_r;
-assign o_x_addr    = {mat_cnt_r, 4'b0} + col_cnt_r;
+assign o_x_addr    = o_x_addr_r;
 assign o_x_data    = o_x_data_r;
 
 // multipiler
@@ -196,6 +197,7 @@ always @(*) begin
 	o_proc_done_w = 0;
 	// o_mem_rreq_w  = o_mem_rreq_r;
 	o_x_wen_w     = 0;
+	o_x_addr_w	  = o_x_addr_r;
 	o_x_data_w    = o_x_data_r;
 	for (i = 0; i < 16; i = i + 1) begin
 		x_w[i] = x_r[i];
@@ -262,6 +264,7 @@ always @(*) begin
 				// output
 				if (iter_cnt_r == 15) begin
 					o_x_wen_w  = 1;
+					o_x_addr_w = {mat_cnt_r, 4'b0} + col_cnt_r;
 					o_x_data_w = saturated[0];
 				end
 			end
@@ -297,6 +300,7 @@ always @(posedge i_clk or posedge i_reset) begin
 		o_proc_done_r 	<= 0;
 		// o_mem_rreq_r 	<= 0;
 		o_x_wen_r 		<= 0;
+		o_x_addr_r		<= 0;
 		o_x_data_r 		<= 0;
 		state_r 		<= S_IDLE;
 		mat_cnt_r       <= 0;
@@ -311,6 +315,7 @@ always @(posedge i_clk or posedge i_reset) begin
 		o_proc_done_r 	<= o_proc_done_w;
 		// o_mem_rreq_r 	<= o_mem_rreq_w;
 		o_x_wen_r 		<= o_x_wen_w;
+		o_x_addr_r		<= o_x_addr_w;
 		o_x_data_r 		<= o_x_data_w;
 		state_r 		<= state_w;
 		mat_cnt_r       <= mat_cnt_w;
