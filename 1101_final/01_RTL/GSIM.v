@@ -76,7 +76,7 @@ assign o_proc_done = o_proc_done_r;
 assign o_mem_rreq  = 1; //o_mem_rreq_r;
 assign o_mem_addr  = {mat_cnt_w, 4'b0} + mat_cnt_w + col_cnt_w;
 assign o_x_wen     = o_x_wen_r;
-assign o_x_addr    = {mat_cnt_w, 4'b0} + col_cnt_w;
+assign o_x_addr    = {mat_cnt_r, 4'b0} + col_cnt_r;
 assign o_x_data    = o_x_data_r;
 
 // multipiler
@@ -168,9 +168,10 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				if (iter_cnt_r == 15 && col_cnt_r == 15) begin
 					iter_cnt_w = 0;
-					col_cnt_w  = 0;
+					col_cnt_w  = 5'd16;
 					if (mat_cnt_r == i_matrix_num - 1) begin
 						mat_cnt_w = 0;
+						col_cnt_w = 0;
 					end
 					else begin
 						mat_cnt_w = mat_cnt_r + 1;
@@ -213,15 +214,15 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				if (col_cnt_r == 16) begin
 					for (i = 0;i < 16;i = i + 1) begin
-						b_w[i] = i_mem_dout[16*i +: 16];
+						b_w[i] = $signed(i_mem_dout[16*i +: 16]);
 					end
 				end
 				else begin
-					multiplier_in1[0] = i_mem_dout[16*col_cnt_r +: 16]; // 1/a
+					multiplier_in1[0] = $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
 					multiplier_in2[0] = b_r[col_cnt_r];
 					// truncate (add 2 bits) and saturate
-					truncated[0] = {multiplier_output[0][45:0], 2'b0};
-					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : 48'b0; // b/a
+					truncated[0] = $signed({multiplier_output[0][45:0], 2'b0});
+					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : $signed(48'b0); // b/a
 				end
 			end
 		end
@@ -233,15 +234,15 @@ always @(*) begin
 				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
 					if (i == col_cnt_r) begin // reset zero
-						x_w[i] = 48'b0;
+						x_w[i] = $signed(48'b0);
 					end
 					else if (i < col_cnt_r) begin
-						multiplier_in1[i] = i_mem_dout[16*i +: 16];
+						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
 						multiplier_in2[i] = x_r[col_cnt_r];
 						x_w[i] 			  = x_r[i] - saturated[i];
 					end
 					else if (i > col_cnt_r && iter_cnt_r) begin // first iteration skip this part
-						multiplier_in1[i - 1] = i_mem_dout[16*i +: 16];
+						multiplier_in1[i - 1] = $signed(i_mem_dout[16*i +: 16]);
 						multiplier_in2[i - 1] = x_r[col_cnt_r];
 						x_w[i] 			      = x_r[i] - saturated[i - 1];
 					end
@@ -251,17 +252,17 @@ always @(*) begin
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
 				// plus b and saturate
-				truncated[1] 		= x_r[col_cnt_r] + b_r[col_cnt_r];
+				truncated[1] 		= x_r[col_cnt_r] + $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r], 16'b0});
 				// multiply 1/a
-				multiplier_in1[0] 	= i_mem_dout[16*col_cnt_r +: 16]; // 1/a
+				multiplier_in1[0] 	= $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
 				multiplier_in2[0] 	= saturated[1];
 				// truncate and saturate
-				truncated[0] 		= {{14{multiplier_output[0][47]}},multiplier_output[0][47:14]};
+				truncated[0] 		= {{14{multiplier_output[0][47]}}, multiplier_output[0][47:14]};
 				x_w[col_cnt_r]    	= saturated[0]; // (x+b)/a
 				// output
 				if (iter_cnt_r == 15) begin
 					o_x_wen_w  = 1;
-					o_x_data_w = multiplier_output[0];
+					o_x_data_w = saturated[0];
 				end
 			end
 		end
@@ -277,13 +278,13 @@ end
 always @(*) begin	
 	for (i = 0; i < 15; i = i + 1) begin
 		if (truncated[i][47] && ~(&truncated[i][47:31])) begin // negative overflow
-			saturated[i] = MIN_32BITS;
+			saturated[i] = $signed(MIN_32BITS);
 		end
 		else if (~truncated[i][47] && |truncated[i][47:31]) begin // positive overflow // 47:31(v) or 47:32?
-			saturated[i] = MAX_32BITS;
+			saturated[i] = $signed(MAX_32BITS);
 		end
 		else begin
-			saturated[i] = truncated[i][31:0];
+			saturated[i] = $signed(truncated[i][31:0]);
 		end
 	end
 end

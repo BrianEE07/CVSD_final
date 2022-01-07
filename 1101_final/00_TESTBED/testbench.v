@@ -171,7 +171,6 @@ initial begin
                     $display ("Expected output : %h Your output %h\n", x_golden [i*16+k], x_out [i*16+k]);
                 end
             end
-
         end
     end
     if (!fail) begin
