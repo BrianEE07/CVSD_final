@@ -46,10 +46,10 @@ reg [31:0] o_x_data_r, o_x_data_w;
 // control
 reg [2:0] state_r, state_w;			// state
 reg [4:0] mat_cnt_r, mat_cnt_w;     // counter of question number
-reg [4:0] next_mat_cnt_r, next_mat_cnt_w;
+// reg [4:0] next_mat_cnt_r, next_mat_cnt_w;
 reg [3:0] iter_cnt_r, iter_cnt_w;	// counter of iteration times
 reg [4:0] col_cnt_r, col_cnt_w;		// counter of which col does it process 
-reg [4:0] next_col_cnt_r, next_col_cnt_w;
+// reg [4:0] next_col_cnt_r, next_col_cnt_w;
 
 // storage
 reg signed [36:0] x_r [0:15];				// array of x
