@@ -64,6 +64,9 @@ wire signed [47:0] multiplier_output [0:14];
 // truncate and saturate
 reg signed [47:0] truncated [0:14];			// tuncated also means the saturator's input
 reg signed [31:0] saturated [0:14];
+reg signed [37:0] psum [0:1];				// for Lint	
+reg signed [48:0] psum_49bits;				// for Lint	
+reg [9:0]	addr_10bits;		
 
 integer i;
 genvar j;
@@ -192,7 +195,13 @@ end
 // Combinational Blocks
 // ---------------------------------------------------------------------------
 always @(*) begin
-	// TODO
+	// for Lint
+	if (i_mem_rrdy) begin
+		
+	end
+	else begin
+		
+	end
 	// mem_rreq control
 	o_proc_done_w = 0;
 	// o_mem_rreq_w  = o_mem_rreq_r;
@@ -221,10 +230,10 @@ always @(*) begin
 				end
 				else begin
 					multiplier_in1[0] = $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
-					multiplier_in2[0] = b_r[col_cnt_r];
+					multiplier_in2[0] = $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r]});
 					// truncate (add 2 bits) and saturate
 					truncated[0] = $signed({multiplier_output[0][45:0], 2'b0});
-					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : $signed(48'b0); // b/a
+					x_w[col_cnt_r]    = (&col_cnt_r) ? $signed({ {5{saturated[0][31]}}, saturated[0]}) : $signed(48'b0); // b/a
 				end
 			end
 		end
@@ -240,13 +249,15 @@ always @(*) begin
 					end
 					else if (i < col_cnt_r) begin
 						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
-						multiplier_in2[i] = x_r[col_cnt_r];
-						x_w[i] 			  = x_r[i] - saturated[i];
+						multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
+						psum[0]			  = x_r[i] - saturated[i];
+						x_w[i] 			  = $signed(psum[0][36:0]);
 					end
 					else if (i > col_cnt_r && iter_cnt_r) begin // first iteration skip this part
 						multiplier_in1[i - 1] = $signed(i_mem_dout[16*i +: 16]);
-						multiplier_in2[i - 1] = x_r[col_cnt_r];
-						x_w[i] 			      = x_r[i] - saturated[i - 1];
+						multiplier_in2[i - 1] = $signed(x_r[col_cnt_r][31:0]);
+						psum[1]				  = x_r[i] - saturated[i - 1];
+						x_w[i] 			      = $signed(psum[1][36:0]);
 					end
 				end
 			end
@@ -254,17 +265,19 @@ always @(*) begin
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
 				// plus b and saturate
-				truncated[1] 		= x_r[col_cnt_r] + $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r], 16'b0});
+				psum_49bits 		= x_r[col_cnt_r] + $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r], 16'b0});
+				truncated[1] 		= $signed(psum_49bits[47:0]);
 				// multiply 1/a
 				multiplier_in1[0] 	= $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
 				multiplier_in2[0] 	= saturated[1];
 				// truncate and saturate
 				truncated[0] 		= {{14{multiplier_output[0][47]}}, multiplier_output[0][47:14]};
-				x_w[col_cnt_r]    	= saturated[0]; // (x+b)/a
+				x_w[col_cnt_r]    	= $signed({ {5{saturated[0][31]}}, saturated[0]}); // (x+b)/a
 				// output
 				if (iter_cnt_r == 16) begin
 					o_x_wen_w  = 1;
-					o_x_addr_w = {mat_cnt_r, 4'b0} + col_cnt_r;
+					addr_10bits = {mat_cnt_r, 4'b0} + col_cnt_r;
+					o_x_addr_w = addr_10bits[8:0];
 					o_x_data_w = saturated[0];
 				end
 			end
