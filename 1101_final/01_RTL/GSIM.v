@@ -224,7 +224,7 @@ always @(*) begin
 					multiplier_in2[0] = b_r[col_cnt_r];
 					// truncate (add 2 bits) and saturate
 					truncated[0] = $signed({multiplier_output[0][45:0], 2'b0});
-					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : $signed(48'b0); // b/a
+					x_w[col_cnt_r]    = (col_cnt_r) ? saturated[0] : $signed(37'b0); // b/a
 				end
 			end
 		end
@@ -235,10 +235,8 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
-					if (i == col_cnt_r) begin // reset zero
-						x_w[i] = $signed(48'b0);
-					end
-					else if (i < col_cnt_r) begin
+					x_w[col_cnt_r] = $signed(37'b0); // reset zero
+					if (i < col_cnt_r) begin
 						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
 						multiplier_in2[i] = x_r[col_cnt_r];
 						x_w[i] 			  = x_r[i] - saturated[i];
