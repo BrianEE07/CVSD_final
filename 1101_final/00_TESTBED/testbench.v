@@ -233,7 +233,7 @@ end
 // i_mem_rrdy simulation (modify here)
 always @(posedge clk or posedge reset)  begin
     if(reset)    rrdy_r <= 1;
-     else rrdy_r <= 1;
+     else rrdy_r <= 1;// $random;
 end
 
 
