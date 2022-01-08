@@ -47,7 +47,7 @@ reg [31:0] o_x_data_r, o_x_data_w;
 reg [2:0] state_r, state_w;			// state
 reg [4:0] mat_cnt_r, mat_cnt_w;     // counter of question number
 // reg [4:0] next_mat_cnt_r, next_mat_cnt_w;
-reg [3:0] iter_cnt_r, iter_cnt_w;	// counter of iteration times
+reg [4:0] iter_cnt_r, iter_cnt_w;	// counter of iteration times
 reg [4:0] col_cnt_r, col_cnt_w;		// counter of which col does it process 
 // reg [4:0] next_col_cnt_r, next_col_cnt_w;
 
@@ -110,7 +110,7 @@ always @(*) begin
 		S_CALC_NEW: begin
 			// stay at this state for only 1 cycle (after read success) for sure
 			if (i_mem_dout_vld) begin
-				if (iter_cnt_r == 15 && col_cnt_r == 15) begin
+				if (iter_cnt_r == 16 && col_cnt_r == 15) begin
 					if (mat_cnt_r == i_matrix_num - 1) state_w = S_FINISH;
 					else 							   state_w = S_INIT; // next question
 				end
@@ -167,7 +167,7 @@ always @(*) begin
 		end
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
-				if (iter_cnt_r == 15 && col_cnt_r == 15) begin
+				if (iter_cnt_r == 16 && col_cnt_r == 15) begin
 					iter_cnt_w = 0;
 					col_cnt_w  = 5'd16;
 					if (mat_cnt_r == i_matrix_num - 1) begin
@@ -262,7 +262,7 @@ always @(*) begin
 				truncated[0] 		= {{14{multiplier_output[0][47]}}, multiplier_output[0][47:14]};
 				x_w[col_cnt_r]    	= saturated[0]; // (x+b)/a
 				// output
-				if (iter_cnt_r == 15) begin
+				if (iter_cnt_r == 16) begin
 					o_x_wen_w  = 1;
 					o_x_addr_w = {mat_cnt_r, 4'b0} + col_cnt_r;
 					o_x_data_w = saturated[0];
