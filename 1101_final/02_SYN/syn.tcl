@@ -30,7 +30,8 @@ read_file -format verilog  "../01_RTL/$DESIGN.v"
 current_design [get_designs $DESIGN]
 link
 
-source -echo -verbose ./GSIM_DC_EPS.sdc
+# source -echo -verbose ./GSIM_DC_EPS.sdc
+source -echo -verbose ./GSIM_DC.sdc
 
 # Compile Design
 current_design [get_designs ${DESIGN}]

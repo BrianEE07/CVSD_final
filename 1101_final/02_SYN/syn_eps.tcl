@@ -36,7 +36,7 @@ read_file -format verilog  "../01_RTL/GSIM.v"
 current_design [get_designs $DESIGN]
 link
 
-source -echo -verbose 	
+source -echo -verbose GSIM_DC_EPS.sdc
 
 # Compile Design
 current_design [get_designs ${DESIGN}]
@@ -45,7 +45,7 @@ check_design > Report/check_design.txt
 check_timing > Report/check_timing.txt
 #set high_fanout_net_threshold 0
 
-source GSIM_DC.sdc
+# source 
 
 source eps_phy_cons.tcl
 
@@ -76,7 +76,7 @@ remove_unconnected_ports -blast_buses [get_cells -hierarchical *]
 set verilogout_higher_designs_first true
 write -format ddc     -hierarchy -output "./Netlist_eps/${DESIGN}_syn.ddc"
 write -format verilog -hierarchy -output "./Netlist_eps/${DESIGN}_syn.v"
-write_sdf -version 2.1  -context verilog -load_delay cell ./Netlist/${DESIGN}_syn.sdf
+write_sdf -version 2.1  -context verilog -load_delay cell ./Netlist_eps/${DESIGN}_syn.sdf
 write_sdc  ./Netlist_eps/${DESIGN}_syn.sdc -version 1.8
 
 
