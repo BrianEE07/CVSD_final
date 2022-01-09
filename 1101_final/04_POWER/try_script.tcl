@@ -6,6 +6,8 @@ read_file -format verilog  ../02_SYN/Netlist/GSIM_syn.v
 current_design GSIM
 link
 
+
+########### [Important] Remember to change start time and end time
 #read_sdf -load_delay net ./GSIM_syn.sdf
 
 ## ===== idle window ===== TA modify
@@ -27,7 +29,7 @@ report_power > try_active.power
 
 ## ===== idle_after_active window ===== TA modify
 read_vcd  -strip_path testbed/u_GSIM  ../03_GATE/gsim.fsdb \
-          -time {98913.5 99913.5}
+          -time {131423.5 132423.5}
 update_power
 report_power
 report_power > try_idle_after_active.power

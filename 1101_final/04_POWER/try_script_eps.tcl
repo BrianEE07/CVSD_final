@@ -8,6 +8,8 @@ link
 
 #read_sdf -load_delay net ./GSIM_syn.sdf
 
+########### [Important] Remember to change start time and end time
+
 ## ===== idle window ===== TA modify
 read_vcd  -strip_path testbed/u_GSIM  ../03_GATE/gsim_eps.fsdb \
           -time {10.5  1010.5}
@@ -27,7 +29,7 @@ report_power > try_active.power
 
 ## ===== idle_after_active window ===== TA modify
 read_vcd  -strip_path testbed/u_GSIM  ../03_GATE/gsim_eps.fsdb \
-          -time {98913.5 99913.5}
+          -time {131423.5 132423.5}
 update_power
 report_power
 report_power > try_idle_after_active.power
