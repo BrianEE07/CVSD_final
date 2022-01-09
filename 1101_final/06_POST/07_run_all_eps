@@ -1,0 +1,5 @@
+ncverilog -f rtl_05.f +ncmaxdelays  +access+r +define+post_eps+SDF+tb0
+ncverilog -f rtl_05.f +ncmaxdelays  +access+r +define+post_eps+SDF+tb1
+ncverilog -f rtl_05.f +ncmaxdelays  +access+r +define+post_eps+SDF+tb2
+ncverilog -f rtl_05.f +ncmaxdelays  +access+r +define+post_eps+SDF+tb3
+ncverilog -f rtl_05.f +ncmaxdelays  +access+r +define+post_eps+SDF+tb4

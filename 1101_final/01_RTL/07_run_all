@@ -1,5 +1,5 @@
-ncverilog -f rtl_01.f +notimingchecks +access+r +define+tb0
-ncverilog -f rtl_01.f +notimingchecks +access+r +define+tb1
-ncverilog -f rtl_01.f +notimingchecks +access+r +define+tb2
-ncverilog -f rtl_01.f +notimingchecks +access+r +define+tb3
-ncverilog -f rtl_01.f +notimingchecks +access+r +define+tb4
+ncverilog -f rtl_01.f +notimingchecks +access+r +define+rtl+tb0
+ncverilog -f rtl_01.f +notimingchecks +access+r +define+rtl+tb1
+ncverilog -f rtl_01.f +notimingchecks +access+r +define+rtl+tb2
+ncverilog -f rtl_01.f +notimingchecks +access+r +define+rtl+tb3
+ncverilog -f rtl_01.f +notimingchecks +access+r +define+rtl+tb4

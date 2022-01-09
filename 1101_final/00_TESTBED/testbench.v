@@ -1,6 +1,6 @@
 `timescale 1ns/10ps
 `define CYCLE    15.0          	       // Modify your clock period here
-`define SDFFILE  "GSIM_syn.sdf"	               // Modify your sdf file name
+// `define SDFFILE  "GSIM_syn.sdf"	       // Modify your sdf file name
 `define MAX_CYCLE   1000000
 `define RST_DELAY   1.25
 `define DEL_I 1
@@ -28,6 +28,23 @@
     `define MATRIXNUM 16
 `endif
 
+// define SDFFILE and FSDBNAME
+`ifdef post
+    `define SDFFILE  "../05_APR/Netlist/GSIM_syn.sdf"
+    `define FSDBNAME "gsim.fsdb"
+`elsif post_eps
+    `define SDFFILE  "../02_SYN/Netlist/GSIM_syn.sdf"
+    `define FSDBNAME "gsim_eps.fsdb"
+`elsif syn
+    `define SDFFILE  "../02_SYN/Netlist/GSIM_syn.sdf"
+    `define FSDBNAME "gsim.fsdb"
+`elsif syn_eps
+    `define SDFFILE  "../02_SYN/Netlist_eps/GSIM_syn.sdf"
+    `define FSDBNAME "gsim_eps.fsdb"
+`else
+    `define SDFFILE  ".GSIM_syn.sdf"
+    `define FSDBNAME "gsim.fsdb"
+`endif
 
 module testbed;
 
@@ -80,11 +97,15 @@ end
 initial begin
 `ifdef VCS
 `elsif SDF
-  $fsdbDumpfile("gsim.fsdb");
+  $fsdbDumpfile(`FSDBNAME);
   $fsdbDumpvars(1, "+mda");
   $fsdbDumpMDA;
+`elsif PT
+  $fsdbDumpfile(`FSDBNAME);
+  $fsdbDumpvars(0, "+mda");
+  $fsdbDumpMDA;
 `else
-  $fsdbDumpfile("gsim.fsdb");
+  $fsdbDumpfile(`FSDBNAME);
   $fsdbDumpvars(0, "+mda");
   $fsdbDumpMDA;
 `endif

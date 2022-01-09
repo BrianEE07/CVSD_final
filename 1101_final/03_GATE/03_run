@@ -1,1 +1,1 @@
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+SDF+tb0
+ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb0
