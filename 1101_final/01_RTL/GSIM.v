@@ -25,11 +25,9 @@ module GSIM (                       //Don't modify interface
 // state define
 localparam S_IDLE = 0;
 localparam S_INIT = 1;			// initialize for every different questions
-// localparam S_WAIT = 2;			// wait for memory
-localparam S_CALC_TERMS = 3;	// calculate one term and minus it
-localparam S_CALC_NEW = 4;		// calculate new iter. value (+b, *(1/aii))
-// localparam S_OUTPUT = 5;		// write the result to output memory
-localparam S_FINISH = 6;		// assert o_proc_done until i_module_en == 0
+localparam S_CALC_TERMS = 2;	// calculate one term and minus it
+localparam S_CALC_NEW = 3;		// calculate new iter. value (+b, *(1/aii))
+localparam S_FINISH = 4;		// assert o_proc_done until i_module_en == 0
 
 // max and min
 localparam MAX_32BITS = 32'h7FFF_FFFF;
@@ -58,13 +56,13 @@ reg signed [15:0] b_r [0:15];
 reg signed [15:0] b_w [0:15];				// array of b
 
 // multipiler
-reg signed [15:0] multiplier_in1 [0:14];	// array of multiplier
-reg signed [31:0] multiplier_in2 [0:14];
-wire signed [47:0] multiplier_output [0:14];
+reg signed [15:0] multiplier_in1 [0:15];	// array of multiplier
+reg signed [31:0] multiplier_in2 [0:15];
+wire signed [47:0] multiplier_output [0:15];
 // truncate and saturate
-reg signed [47:0] truncated [0:14];			// tuncated also means the saturator's input
-reg signed [31:0] saturated [0:14];
-reg signed [37:0] psum [0:1];				// for Lint	
+reg signed [47:0] truncated [0:15];			// truncated also means the saturator's input
+reg signed [31:0] saturated [0:15];
+reg signed [37:0] psum;						// for Lint	
 reg signed [48:0] psum_49bits;				// for Lint	
 reg [9:0]	addr_10bits;		
 
@@ -85,7 +83,7 @@ assign o_x_data    = o_x_data_r;
 
 // multipiler
 generate
-	for (j = 0; j < 15; j = j + 1) begin: multipiler_array
+	for (j = 0; j < 16; j = j + 1) begin: multipiler_array
 		assign multiplier_output[j] = multiplier_in1[j]*multiplier_in2[j];
 	end
 endgenerate
@@ -98,9 +96,6 @@ always @(*) begin
 	case (state_r)
 		S_IDLE: if (i_module_en) state_w = S_INIT;
 		S_INIT: if (i_mem_dout_vld && !col_cnt_r) state_w = S_CALC_TERMS; // after reading 1/a11~1/a1616 and b_row
-		// S_WAIT: begin
-			
-		// end
 		S_CALC_TERMS: begin
 			// when iter=0, first 15 cycles(x2~x16) needed for calc_term
 			// else, calc_term & calc_new take turns every 1 cycle (after read success)
@@ -122,9 +117,6 @@ always @(*) begin
 				end
 			end
 		end
-		// S_OUTPUT: begin
-			
-		// end
 		S_FINISH: if (!i_module_en) state_w = S_IDLE;
 		default: ;
 	endcase
@@ -154,9 +146,6 @@ always @(*) begin
 				end
 			end	
 		end
-		// S_WAIT: begin
-			
-		// end
 		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
 				if (col_cnt_r == 15) begin
@@ -183,9 +172,6 @@ always @(*) begin
 				end
 			end
 		end
-		// S_OUTPUT: begin
-			
-		// end
 		S_FINISH: ;
 		default: ;
 	endcase
@@ -212,11 +198,11 @@ always @(*) begin
 		x_w[i] = x_r[i];
 		b_w[i] = b_r[i];
 	end
-	for (i = 0; i < 15; i = i + 1) begin
+	for (i = 0; i < 16; i = i + 1) begin
 		multiplier_in1[i] = 0;
 		multiplier_in2[i] = 0;
 	end
-	for (i = 0; i < 15; i = i + 1) begin  // [truncator]
+	for (i = 0; i < 16; i = i + 1) begin  // [truncator]
 		truncated[i] = multiplier_output[i];
 	end
 	case (state_r)
@@ -237,25 +223,16 @@ always @(*) begin
 				end
 			end
 		end
-		// S_WAIT: begin
-			
-		// end
 		S_CALC_TERMS: begin // [Important] We should think about what is the synthesis result.
 			if (i_mem_dout_vld) begin
 				// [TODO]: Integer asymmetric saturation
 				for (i = 0;i < 16;i = i + 1) begin
 					x_w[col_cnt_r] = $signed(37'b0); // reset zero
-					if (i < col_cnt_r) begin
+					if (i < col_cnt_r || (i > col_cnt_r && iter_cnt_r)) begin // first iteration skip other half
 						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
 						multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
-						psum[0]			  = x_r[i] - saturated[i];
-						x_w[i] 			  = $signed(psum[0][36:0]);
-					end
-					else if (i > col_cnt_r && iter_cnt_r) begin // first iteration skip this part
-						multiplier_in1[i - 1] = $signed(i_mem_dout[16*i +: 16]);
-						multiplier_in2[i - 1] = $signed(x_r[col_cnt_r][31:0]);
-						psum[1]				  = x_r[i] - saturated[i - 1];
-						x_w[i] 			      = $signed(psum[1][36:0]);
+						psum			  = x_r[i] - saturated[i];
+						x_w[i] 			  = $signed(psum[36:0]);
 					end
 				end
 			end
@@ -280,9 +257,6 @@ always @(*) begin
 				end
 			end
 		end
-		// S_OUTPUT: begin
-			
-		// end
 		S_FINISH: o_proc_done_w = i_module_en;
 		default: ;
 	endcase
@@ -290,7 +264,7 @@ end
 
 // saturator
 always @(*) begin	
-	for (i = 0; i < 15; i = i + 1) begin
+	for (i = 0; i < 16; i = i + 1) begin
 		if (truncated[i][47] && ~(&truncated[i][47:31])) begin // negative overflow
 			saturated[i] = $signed(MIN_32BITS);
 		end
