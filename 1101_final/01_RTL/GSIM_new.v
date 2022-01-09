@@ -23,12 +23,14 @@ module GSIM (                       //Don't modify interface
 // Wires and Registers
 // ---------------------------------------------------------------------------
 // state define
-localparam S_IDLE       = 0;
-localparam S_INIT       = 1;	// initialize for every different questions
-localparam S_CALC_TERMS = 2;	// calculate one term and minus it
-localparam S_CALC_NEW   = 3;	// calculate new iter. value (+b, *(1/aii))
-localparam S_ADDB       = 4;	// add bi to all x_reg, col_cnt_r is 16
-localparam S_FINISH     = 5;	// assert o_proc_done until i_module_en == 0
+localparam S_IDLE        = 0;
+localparam S_INIT        = 1;	// initialize for every different questions
+localparam S_CALC_FIRST1 = 2;	// calculate first iteration's term 1
+localparam S_CALC_FIRST2 = 3;	// calculate first iteration's term 2
+localparam S_CALC_TERMS  = 4;	// calculate one term and minus it
+localparam S_CALC_NEW    = 5;	// calculate new iter. value (+b, *(1/aii))
+localparam S_ADDB        = 6;	// add bi to all x_reg, col_cnt_r is 16
+localparam S_FINISH      = 7;	// assert o_proc_done until i_module_en == 0
 
 // max and min
 localparam MAX_32BITS = 32'h7FFF_FFFF;
@@ -62,13 +64,13 @@ reg signed [15:0] abuf_w [0:6];
 reg signed [36:0] x15_r, x15_w;
 
 // multipiler
-reg signed [15:0] multiplier_in1 [0:15];	// array of multiplier
-reg signed [31:0] multiplier_in2 [0:15];
-wire signed [47:0] multiplier_output [0:15];
+reg signed  [15:0] multiplier_in1    [0:7]; // array of multiplier
+reg signed  [31:0] multiplier_in2    [0:7];
+wire signed [47:0] multiplier_output [0:7];
 // truncate and saturate
 reg signed [47:0] truncated [0:15];			// truncated also means the saturator's input
 reg signed [31:0] saturated [0:15];
-reg signed [37:0] psum;						// for Lint	
+reg signed [37:0] psum[0:7];				// for Lint	
 reg signed [48:0] psum_49bits;				// for Lint	
 reg [9:0]	addr_10bits;		
 
@@ -89,7 +91,10 @@ assign o_x_data    = o_x_data_r;
 
 // multipiler
 generate
-	for (j = 0; j < 16; j = j + 1) begin: multipiler_array
+	// for (j = 0; j < 16; j = j + 1) begin: multipiler_array
+	// 	assign multiplier_output[j] = multiplier_in1[j]*multiplier_in2[j];
+	// end
+	for (j = 0; j < 8; j = j + 1) begin: multipiler_array
 		assign multiplier_output[j] = multiplier_in1[j]*multiplier_in2[j];
 	end
 endgenerate
@@ -101,7 +106,14 @@ always @(*) begin
 	state_w = state_r;
 	case (state_r)
 		S_IDLE: if (i_module_en) state_w = S_INIT;
-		S_INIT: if (i_mem_dout_vld && !col_cnt_r) state_w = S_CALC_TERMS; // after reading 1/a11~1/a1616 and b_row
+		S_INIT: if (i_mem_dout_vld && !col_cnt_r) state_w = S_CALC_FIRST1; // after reading 1/a11~1/a1616 and b_row
+		S_CALC_FIRST1: begin
+			if (i_mem_dout_vld) begin
+				if (col_cnt_r == 15)     state_w = S_ADDB;
+				else if (col_cnt_r >= 9) state_w = S_CALC_FIRST2;
+			end
+		end
+		S_CALC_FIRST2: if (i_mem_dout_vld) state_w = S_CALC_FIRST1;
 		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
 				if (col_cnt_r == 15)) begin
@@ -132,7 +144,6 @@ end
 // ---------------------------------------------------------------------------
 // Counter
 // ---------------------------------------------------------------------------
-// [TODO] We should change counter updating stategy, because it will stall 1 cycle now => handshaking
 always @(*) begin
 	mat_cnt_w  = mat_cnt_r;
 	iter_cnt_w = iter_cnt_r;
@@ -153,15 +164,15 @@ always @(*) begin
 				end
 			end	
 		end
+		S_CALC_FIRST1: begin
+			if (i_mem_dout_vld) begin
+				col_cnt_w = col_cnt_r + 1;
+			end
+		end
+		S_CALC_FIRST2: ;
 		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
-				if (col_cnt_r == 15) begin
-					iter_cnt_w = iter_cnt_r + 1;
-					col_cnt_w  = 0;
-				end
-				else begin
-					col_cnt_w = col_cnt_r + 1;
-				end
+				col_cnt_w = col_cnt_r + 1;
 			end
 		end
 		S_CALC_NEW: begin
@@ -177,6 +188,12 @@ always @(*) begin
 						mat_cnt_w = mat_cnt_r + 1;
 					end
 				end
+			end
+		end
+		S_ADDB: begin
+			if (i_mem_dout_vld) begin
+				iter_cnt_w = iter_cnt_r + 1;
+				col_cnt_w  = 0;
 			end
 		end
 		S_FINISH: ;
@@ -205,12 +222,15 @@ always @(*) begin
 	for (i = 0; i < 7; i = i + 1) begin
 		abuf_w[i] = abuf_r[i];
 	end
-	for (i = 0; i < 16; i = i + 1) begin
+	for (i = 0; i < 8; i = i + 1) begin
 		multiplier_in1[i] = 0;
 		multiplier_in2[i] = 0;
 	end
-	for (i = 0; i < 16; i = i + 1) begin  // [truncator]
+	for (i = 0; i < 8; i = i + 1) begin  // [truncator]
 		truncated[i] = multiplier_output[i];
+	end
+	for (i = 8; i < 16; i = i + 1) begin  // [truncator]
+		truncated[i] = 0;
 	end
 	case (state_r)
 		S_IDLE: ;
@@ -218,50 +238,436 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				if (col_cnt_r == 16) begin
 					for (i = 0;i < 16;i = i + 1) begin
-						b_w[i] = $signed(i_mem_dout[16*i +: 16]);
+						x_w[i] = $signed({{21{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16]})
 					end
 				end
 				else begin
 					multiplier_in1[0] = $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
-					multiplier_in2[0] = $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r]});
+					multiplier_in2[0] = $signed(x_r[col_cnt_r][31:0]); // b
 					// truncate (add 2 bits) and saturate
-					truncated[0] = $signed({multiplier_output[0][45:0], 2'b0});
-					x_w[col_cnt_r]    = (|col_cnt_r) ? $signed({ {5{saturated[0][31]}}, saturated[0]}) : $signed(37'b0); // b/a
+					truncated[0]      = $signed({multiplier_output[0][45:0], 2'b0});
+					x_w[col_cnt_r]    = (|col_cnt_r) ? $signed({{5{saturated[0][31]}}, saturated[0]}) : $signed(37'b0); // b/a
 				end
 			end
 		end
-		S_CALC_TERMS: begin // [Important] We should think about what is the synthesis result.
+		S_CALC_FIRST1: begin
+			for (i = 0;i < 8;i = i + 1) begin
+				if (i < col_cnt_r) begin
+					multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
+					multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
+					psum[i]			  = x_r[i] - saturated[i];
+					x_w[i] 			  = $signed(psum[i][36:0]);
+				end
+			end
+			if (col_cnt_r <= 8) begin
+				x_w[col_cnt_r] = $signed(37'b0); // reset zero
+			end
+			else begin
+				// buffer
+				if (col_cnt_r == 15) begin
+					x15_w = x_r[15];
+				end
+				for (i = 0;i < 7;i = i + 1) begin
+					abuf_w[i] = $signed(i_mem_dout[16*(i+8) +: 16]);
+				end
+			end
+		end
+		S_CALC_FIRST2: begin
+			x_w[col_cnt_r] = $signed(37'b0); // reset zero
+		end
+		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
-				// [TODO]: Integer asymmetric saturation
+				for (i = 0;i < 8;i = i + 1) begin 
+					multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
+				end
+				case (col_cnt_r)
+					0: begin
+						// multiplication
+						for (i = 1;i <= 8;i = i + 1) begin // 1~8 to 0~7 mul
+							multiplier_in1[i - 1] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 1]			  = x_r[i] - saturated[i - 1];
+							x_w[i] 			  	  = $signed(psum[i - 1][36:0]);
+						end
+						// buffer
+						for (i = 9;i <= 15;i = i + 1) begin // 9~15 to 0~6 abuf
+							abuf_w[i - 9] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					1: begin
+						// multiplication
+						for (i = 2;i <= 9;i = i + 1) begin // 2~9 to 0~7 mul
+							multiplier_in1[i - 2] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 2]			  = x_r[i] - saturated[i - 2];
+							x_w[i] 			  	  = $signed(psum[i - 2][36:0]);
+						end
+						// buffer
+						abuf_w[6] = $signed(i_mem_dout[16*0 +: 16]);
+						for (i = 10;i <= 15;i = i + 1) begin // 10~15, 0 to 0~6 abuf
+							abuf_w[i - 10] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					2: begin
+						// multiplication
+						for (i = 3;i <= 10;i = i + 1) begin // 3~10 to 0~7 mul
+							multiplier_in1[i - 3] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 3]			  = x_r[i] - saturated[i - 3];
+							x_w[i] 			  	  = $signed(psum[i - 3][36:0]);
+						end
+						// buffer
+						abuf_w[5] = $signed(i_mem_dout[16*0 +: 16]);
+						abuf_w[6] = $signed(i_mem_dout[16*1 +: 16]);
+						for (i = 11;i <= 15;i = i + 1) begin // 11~15, 0, 1 to 0~6 abuf
+							abuf_w[i - 11] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					3: begin
+						// multiplication
+						for (i = 4;i <= 11;i = i + 1) begin // 4~11 to 0~7 mul
+							multiplier_in1[i - 4] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 4]			  = x_r[i] - saturated[i - 4];
+							x_w[i] 			  	  = $signed(psum[i - 4][36:0]);
+						end
+						// buffer
+						abuf_w[4] = $signed(i_mem_dout[16*0 +: 16]);
+						abuf_w[5] = $signed(i_mem_dout[16*1 +: 16]);
+						abuf_w[6] = $signed(i_mem_dout[16*2 +: 16]);
+						for (i = 12;i <= 15;i = i + 1) begin // 12~15, 0, 1, 2 to 0~6 abuf
+							abuf_w[i - 12] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					4: begin
+						// multiplication
+						for (i = 5;i <= 12;i = i + 1) begin // 5~12 to 0~7 mul
+							multiplier_in1[i - 5] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 5]			  = x_r[i] - saturated[i - 5];
+							x_w[i] 			  	  = $signed(psum[i - 5][36:0]);
+						end
+						// buffer
+						abuf_w[0] = $signed(i_mem_dout[16*13 +: 16]);
+						abuf_w[1] = $signed(i_mem_dout[16*14 +: 16]);
+						abuf_w[2] = $signed(i_mem_dout[16*15 +: 16]);
+						for (i = 0;i <= 3;i = i + 1) begin // 13, 14, 15, 0~3 to 0~6 abuf
+							abuf_w[i + 3] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					5: begin
+						// multiplication
+						for (i = 6;i <= 13;i = i + 1) begin // 6~13 to 0~7 mul
+							multiplier_in1[i - 6] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 6]			  = x_r[i] - saturated[i - 6];
+							x_w[i] 			  	  = $signed(psum[i - 6][36:0]);
+						end
+						// buffer
+						abuf_w[0] = $signed(i_mem_dout[16*14 +: 16]);
+						abuf_w[1] = $signed(i_mem_dout[16*15 +: 16]);
+						for (i = 0;i <= 4;i = i + 1) begin // 14, 15, 0~4 to 0~6 abuf
+							abuf_w[i + 2] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					6: begin
+						// multiplication
+						for (i = 7;i <= 14;i = i + 1) begin // 7~14 to 0~7 mul
+							multiplier_in1[i - 7] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 7]			  = x_r[i] - saturated[i - 7];
+							x_w[i] 			  	  = $signed(psum[i - 7][36:0]);
+						end
+						// buffer
+						abuf_w[0] = $signed(i_mem_dout[16*15 +: 16]);
+						for (i = 0;i <= 5;i = i + 1) begin // 15, 0~5 to 0~6 abuf
+							abuf_w[i + 1] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					7: begin
+						// multiplication
+						for (i = 8;i <= 15;i = i + 1) begin // 8~15 to 0~7 mul
+							multiplier_in1[i - 8] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 8]			  = x_r[i] - saturated[i - 8];
+							x_w[i] 			  	  = $signed(psum[i - 8][36:0]);
+						end
+						// buffer
+						for (i = 0;i <= 6;i = i + 1) begin // 0~6 to 0~6 abuf
+							abuf_w[i] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					8: begin
+						// multiplication
+						multiplier_in1[7] = $signed(i_mem_dout[16*0 +: 16]);
+						psum[7]			  = x_r[0] - saturated[7];
+						x_w[0] 			  = $signed(psum[7][36:0]);
+						for (i = 9;i <= 15;i = i + 1) begin // 9~15, 0 to 0~7 mul
+							multiplier_in1[i - 9] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 9]			  = x_r[i] - saturated[i - 9];
+							x_w[i] 			  	  = $signed(psum[i - 9][36:0]);
+						end
+						// buffer
+						for (i = 1;i <= 7;i = i + 1) begin // 1~7 to 0~6 abuf
+							abuf_w[i - 1] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					9: begin
+						// multiplication
+						multiplier_in1[6] = $signed(i_mem_dout[16*0 +: 16]);
+						psum[6]			  = x_r[0] - saturated[6];
+						x_w[0] 			  = $signed(psum[6][36:0]);
+						multiplier_in1[7] = $signed(i_mem_dout[16*1 +: 16]);
+						psum[7]			  = x_r[1] - saturated[7];
+						x_w[1] 			  = $signed(psum[7][36:0]);
+						for (i = 10;i <= 15;i = i + 1) begin // 10~15, 0, 1 to 0~7 mul
+							multiplier_in1[i - 10] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 10]			  = x_r[i] - saturated[i - 10];
+							x_w[i] 			  	  = $signed(psum[i - 10][36:0]);
+						end
+						// buffer
+						for (i = 2;i <= 8;i = i + 1) begin // 2~8 to 0~6 abuf
+							abuf_w[i - 2] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					10: begin
+						// multiplication
+						multiplier_in1[5] = $signed(i_mem_dout[16*0 +: 16]);
+						psum[5]			  = x_r[0] - saturated[5];
+						x_w[0] 			  = $signed(psum[5][36:0]);
+						multiplier_in1[6] = $signed(i_mem_dout[16*1 +: 16]);
+						psum[6]			  = x_r[1] - saturated[6];
+						x_w[1] 			  = $signed(psum[6][36:0]);
+						multiplier_in1[7] = $signed(i_mem_dout[16*2 +: 16]);
+						psum[7]			  = x_r[2] - saturated[7];
+						x_w[2] 			  = $signed(psum[7][36:0]);
+						for (i = 11;i <= 15;i = i + 1) begin // 11~15, 0, 1, 2 to 0~7 mul
+							multiplier_in1[i - 11] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 11]			  = x_r[i] - saturated[i - 11];
+							x_w[i] 			  	  = $signed(psum[i - 11][36:0]);
+						end
+						// buffer
+						for (i = 3;i <= 9;i = i + 1) begin // 3~9 to 0~6 abuf
+							abuf_w[i - 3] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					11: begin
+						// multiplication
+						for (i = 0;i <= 3;i = i + 1) begin // 12~15, 0~3 to 0~7 mul
+							multiplier_in1[i + 4] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i + 4]			  = x_r[i] - saturated[i + 4];
+							x_w[i] 			  	  = $signed(psum[i + 4][36:0]);
+						end
+						for (i = 12;i <= 15;i = i + 1) begin
+							multiplier_in1[i - 12] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i - 12]			  = x_r[i] - saturated[i - 12];
+							x_w[i] 			  	  = $signed(psum[i - 12][36:0]);
+						end
+						// buffer
+						for (i = 4;i <= 10;i = i + 1) begin // 4~10 to 0~6 abuf
+							abuf_w[i - 4] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					12: begin
+						// multiplication
+						multiplier_in1[0] = $signed(i_mem_dout[16*13 +: 16]);
+						psum[0]			  = x_r[13] - saturated[0];
+						x_w[13] 		  = $signed(psum[0][36:0]);
+						multiplier_in1[1] = $signed(i_mem_dout[16*14 +: 16]);
+						psum[1]			  = x_r[14] - saturated[1];
+						x_w[14] 		  = $signed(psum[1][36:0]);
+						multiplier_in1[2] = $signed(i_mem_dout[16*15 +: 16]);
+						psum[2]			  = x_r[15] - saturated[2];
+						x_w[15] 		  = $signed(psum[2][36:0]);
+						for (i = 0;i <= 4;i = i + 1) begin // 13, 14, 15, 0~4 to 0~7 mul
+							multiplier_in1[i + 3] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i + 3]			  = x_r[i] - saturated[i + 3];
+							x_w[i] 			  	  = $signed(psum[i + 3][36:0]);
+						end
+						// buffer
+						for (i = 5;i <= 11;i = i + 1) begin // 5~11 to 0~6 abuf
+							abuf_w[i - 5] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					13: begin
+						// multiplication
+						multiplier_in1[0] = $signed(i_mem_dout[16*14 +: 16]);
+						psum[0]			  = x_r[14] - saturated[0];
+						x_w[14] 		  = $signed(psum[0][36:0]);
+						multiplier_in1[1] = $signed(i_mem_dout[16*15 +: 16]);
+						psum[1]			  = x_r[15] - saturated[1];
+						x_w[15] 		  = $signed(psum[1][36:0]);
+						for (i = 0;i <= 5;i = i + 1) begin // 14, 15, 0~5 to 0~7 mul
+							multiplier_in1[i + 2] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i + 2]			  = x_r[i] - saturated[i + 2];
+							x_w[i] 			  	  = $signed(psum[i + 2][36:0]);
+						end
+						// buffer
+						for (i = 6;i <= 12;i = i + 1) begin // 6~12 to 0~6 abuf
+							abuf_w[i - 6] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					14: begin
+						// multiplication
+						multiplier_in1[0] = $signed(i_mem_dout[16*15 +: 16]);
+						psum[0]			  = x_r[15] - saturated[0];
+						x_w[15] 		  = $signed(psum[0][36:0]);
+						for (i = 0;i <= 6;i = i + 1) begin // 15, 0~6 to 0~7 mul
+							multiplier_in1[i + 1] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i + 1]			  = x_r[i] - saturated[i + 1];
+							x_w[i] 			  	  = $signed(psum[i + 1][36:0]);
+						end
+						// buffer
+						for (i = 7;i <= 13;i = i + 1) begin // 7~13 to 0~6 abuf
+							abuf_w[i - 7] = $signed(i_mem_dout[16*i +: 16]);
+						end
+					end
+					15: begin
+						for (i = 0;i <= 7;i = i + 1) begin // 0~7 to 0~7 mul
+							multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
+							psum[i]			  = x_r[i] - saturated[i];
+							x_w[i] 			  = $signed(psum[i][36:0]);
+						end
+						// buffer
+						for (i = 8;i <= 14;i = i + 1) begin // 8~14 to 0~6 abuf
+							abuf_w[i - 8] = $signed(i_mem_dout[16*i +: 16]);
+						end
+						// buffer x15
+						x15_w = x_r[15];
+					end
+				endcase
 				for (i = 0;i < 16;i = i + 1) begin
 					x_w[col_cnt_r] = $signed(37'b0); // reset zero
 					if (i < col_cnt_r || (i > col_cnt_r && iter_cnt_r)) begin // first iteration skip other half
 						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
 						multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
-						psum			  = x_r[i] - saturated[i];
-						x_w[i] 			  = $signed(psum[36:0]);
+						psum[i]			  = x_r[i] - saturated[i];
+						x_w[i] 			  = $signed(psum[i][36:0]);
 					end
 				end
 			end
 		end
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
-				// plus b and saturate
-				psum_49bits 		= x_r[col_cnt_r] + $signed({{16{b_r[col_cnt_r][15]}}, b_r[col_cnt_r], 16'b0});
-				truncated[1] 		= $signed(psum_49bits[47:0]);
+				// reset zero
+				if (col_cnt_r) begin
+					x_w[col_cnt_r - 1] = $signed(37'b0);
+				end
+				else begin
+					x_w[15] = $signed(37'b0);
+				end
 				// multiply 1/a
-				multiplier_in1[0] 	= $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
-				multiplier_in2[0] 	= saturated[1];
+				multiplier_in1[7] = $signed(i_mem_dout[16*col_cnt_r +: 16]); // 1/a
+				multiplier_in2[7] = $signed(x_r[col_cnt_r][31:0]);
 				// truncate and saturate
-				truncated[0] 		= {{14{multiplier_output[0][47]}}, multiplier_output[0][47:14]};
-				x_w[col_cnt_r]    	= $signed({ {5{saturated[0][31]}}, saturated[0]}); // (x+b)/a
+				truncated[7] 	  = {{14{multiplier_output[7][47]}}, multiplier_output[7][47:14]};
+				x_w[col_cnt_r]    = $signed({{5{saturated[7][31]}}, saturated[7]}); // (final x)/a
 				// output
 				if (iter_cnt_r == 16) begin
-					o_x_wen_w  = 1;
+					o_x_wen_w   = 1;
 					addr_10bits = {mat_cnt_r, 4'b0} + col_cnt_r;
-					o_x_addr_w = addr_10bits[8:0];
-					o_x_data_w = saturated[0];
+					o_x_addr_w  = addr_10bits[8:0];
+					o_x_data_w  = saturated[7];
 				end
+				// buffer multiplication
+				for (i = 0;i < 7;i = i + 1) begin
+					multiplier_in1[i] = $signed(abuf_r[i]);
+					multiplier_in2[i] = (col_cnt_r) ? $signed(x_r[col_cnt_r - 1][31:0]) : $signed(x15_r[31:0]); // from buffer or not
+					psum[i]			  = x_r[i] - saturated[i];
+				end
+				case (col_cnt_r)
+					0: begin
+						for (i = 9;i <= 15;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 9][36:0]); // 0~6 to 9~15
+						end
+					end
+					1: begin
+						x_w[0] = $signed(psum[6][36:0]);
+						for (i = 10;i <= 15;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 10][36:0]); // 0~6 to 10~15, 0
+						end
+					end
+					2: begin
+						x_w[0] = $signed(psum[5][36:0]);
+						x_w[1] = $signed(psum[6][36:0]);
+						for (i = 11;i <= 15;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 11][36:0]); // 0~6 to 11~15, 0, 1
+						end
+					end
+					3: begin
+						x_w[0] = $signed(psum[4][36:0]);
+						x_w[1] = $signed(psum[5][36:0]);
+						x_w[2] = $signed(psum[6][36:0]);
+						for (i = 12;i <= 15;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 12][36:0]); // 0~6 to 12~15, 0, 1, 2
+						end
+					end
+					4: begin
+						x_w[13] = $signed(psum[0][36:0]);
+						x_w[14] = $signed(psum[1][36:0]);
+						x_w[15] = $signed(psum[2][36:0]);
+						for (i = 0;i <= 3;i = i + 1) begin
+							x_w[i] = $signed(psum[i + 3][36:0]); // 0~6 to 13, 14, 15, 0~3
+						end
+					end
+					5: begin
+						x_w[14] = $signed(psum[0][36:0]);
+						x_w[15] = $signed(psum[1][36:0]);
+						for (i = 0;i <= 4;i = i + 1) begin
+							x_w[i] = $signed(psum[i + 2][36:0]); // 0~6 to 14, 15, 0~4
+						end
+					end
+					6: begin
+						x_w[15] = $signed(psum[0][36:0]);
+						for (i = 0;i <= 5;i = i + 1) begin
+							x_w[i] = $signed(psum[i + 1][36:0]); // 0~6 to 15, 0~5
+						end
+					end
+					7: begin
+						for (i = 0;i <= 6;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 0~6
+						end
+					end
+					8: begin
+						for (i = 1;i <= 7;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 1~7
+						end
+					end
+					9: begin
+						for (i = 2;i <= 8;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 2~8
+						end
+					end
+					10: begin
+						for (i = 3;i <= 9;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 3~9
+						end
+					end
+					11: begin
+						for (i = 4;i <= 10;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 4~10
+						end
+					end
+					12: begin
+						for (i = 5;i <= 11;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 5~11
+						end
+					end
+					13: begin
+						for (i = 6;i <= 12;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 6~12
+						end
+					end
+					14: begin
+						for (i = 7;i <= 13;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 7~13
+						end
+					end
+					15: begin
+						for (i = 8;i <= 14;i = i + 1) begin
+							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 8~14
+						end
+					end
+				endcase
+			end
+		end
+		S_ADDB: begin
+			for (i = 0;i < 16;i = i + 1) begin
+				psum_49bits  = x_r[i] + $signed({{16{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16], 16'b0})
+				truncated[i] = $signed(psum_49bits[47:0]);
+				x_w[i]		 = $signed({{5{saturated[i][31]}}, saturated[i]});
 			end
 		end
 		S_FINISH: o_proc_done_w = i_module_en;
