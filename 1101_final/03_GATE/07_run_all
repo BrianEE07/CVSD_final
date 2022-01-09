@@ -1,5 +1,5 @@
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb0
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb1
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb2
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb3
-ncverilog -f rtl_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb4
+ncverilog -f syn_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb0
+ncverilog -f syn_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb1
+ncverilog -f syn_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb2
+ncverilog -f syn_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb3
+ncverilog -f syn_03.f +ncmaxdelays  +access+r +define+syn+SDF+tb4
