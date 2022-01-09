@@ -1,0 +1,2 @@
+pt_shell -f ./try_script_eps.tcl
+python try_diff.py

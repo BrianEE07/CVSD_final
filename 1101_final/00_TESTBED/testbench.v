@@ -96,13 +96,13 @@ end
 // Write out waveform file
 initial begin
 `ifdef VCS
-`elsif SDF
-  $fsdbDumpfile(`FSDBNAME);
-  $fsdbDumpvars(1, "+mda");
-  $fsdbDumpMDA;
 `elsif PT
   $fsdbDumpfile(`FSDBNAME);
   $fsdbDumpvars(0, "+mda");
+  $fsdbDumpMDA;
+`elsif SDF
+  $fsdbDumpfile(`FSDBNAME);
+  $fsdbDumpvars(1, "+mda");
   $fsdbDumpMDA;
 `else
   $fsdbDumpfile(`FSDBNAME);
