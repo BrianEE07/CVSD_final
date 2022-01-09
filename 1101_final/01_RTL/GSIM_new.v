@@ -116,10 +116,10 @@ always @(*) begin
 		S_CALC_FIRST2: if (i_mem_dout_vld) state_w = S_CALC_FIRST1;
 		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
-				if (col_cnt_r == 15)) begin
+				if (col_cnt_r == 15) begin
 					state_w = S_ADDB;
 				end
-				else if (iter_cnt_r) begin
+				else if (|iter_cnt_r) begin
 					state_w = S_CALC_NEW;
 				end
 			end
@@ -206,8 +206,12 @@ end
 // ---------------------------------------------------------------------------
 always @(*) begin
 	// for Lint
-	if (i_mem_rrdy)
-	else 
+	if (i_mem_rrdy) begin
+		
+	end
+	else begin
+		
+	end
 	// mem_rreq control
 	o_proc_done_w = 0;
 	// o_mem_rreq_w  = o_mem_rreq_r;
@@ -217,7 +221,7 @@ always @(*) begin
 	x15_w		  = x15_r;
 	for (i = 0; i < 16; i = i + 1) begin
 		x_w[i] = x_r[i];
-		b_w[i] = b_r[i];
+		// b_w[i] = b_r[i];
 	end
 	for (i = 0; i < 7; i = i + 1) begin
 		abuf_w[i] = abuf_r[i];
@@ -238,7 +242,7 @@ always @(*) begin
 			if (i_mem_dout_vld) begin
 				if (col_cnt_r == 16) begin
 					for (i = 0;i < 16;i = i + 1) begin
-						x_w[i] = $signed({{21{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16]})
+						x_w[i] = $signed({{21{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16]});
 					end
 				end
 				else begin
@@ -527,22 +531,14 @@ always @(*) begin
 						// buffer x15
 						x15_w = x_r[15];
 					end
+					default: ;
 				endcase
-				for (i = 0;i < 16;i = i + 1) begin
-					x_w[col_cnt_r] = $signed(37'b0); // reset zero
-					if (i < col_cnt_r || (i > col_cnt_r && iter_cnt_r)) begin // first iteration skip other half
-						multiplier_in1[i] = $signed(i_mem_dout[16*i +: 16]);
-						multiplier_in2[i] = $signed(x_r[col_cnt_r][31:0]);
-						psum[i]			  = x_r[i] - saturated[i];
-						x_w[i] 			  = $signed(psum[i][36:0]);
-					end
-				end
 			end
 		end
 		S_CALC_NEW: begin
 			if (i_mem_dout_vld) begin
 				// reset zero
-				if (col_cnt_r) begin
+				if (|col_cnt_r) begin
 					x_w[col_cnt_r - 1] = $signed(37'b0);
 				end
 				else begin
@@ -564,7 +560,7 @@ always @(*) begin
 				// buffer multiplication
 				for (i = 0;i < 7;i = i + 1) begin
 					multiplier_in1[i] = $signed(abuf_r[i]);
-					multiplier_in2[i] = (col_cnt_r) ? $signed(x_r[col_cnt_r - 1][31:0]) : $signed(x15_r[31:0]); // from buffer or not
+					multiplier_in2[i] = (|col_cnt_r) ? $signed(x_r[col_cnt_r - 1][31:0]) : $signed(x15_r[31:0]); // from buffer or not
 					psum[i]			  = x_r[i] - saturated[i];
 				end
 				case (col_cnt_r)
@@ -617,42 +613,42 @@ always @(*) begin
 					end
 					7: begin
 						for (i = 0;i <= 6;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 0~6
+							x_w[i] = $signed(psum[i][36:0]); // 0~6 to 0~6
 						end
 					end
 					8: begin
 						for (i = 1;i <= 7;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 1~7
+							x_w[i] = $signed(psum[i - 1][36:0]); // 0~6 to 1~7
 						end
 					end
 					9: begin
 						for (i = 2;i <= 8;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 2~8
+							x_w[i] = $signed(psum[i - 2][36:0]); // 0~6 to 2~8
 						end
 					end
 					10: begin
 						for (i = 3;i <= 9;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 3~9
+							x_w[i] = $signed(psum[i - 3][36:0]); // 0~6 to 3~9
 						end
 					end
 					11: begin
 						for (i = 4;i <= 10;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 4~10
+							x_w[i] = $signed(psum[i - 4][36:0]); // 0~6 to 4~10
 						end
 					end
 					12: begin
 						for (i = 5;i <= 11;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 5~11
+							x_w[i] = $signed(psum[i - 5][36:0]); // 0~6 to 5~11
 						end
 					end
 					13: begin
 						for (i = 6;i <= 12;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 6~12
+							x_w[i] = $signed(psum[i - 6][36:0]); // 0~6 to 6~12
 						end
 					end
 					14: begin
 						for (i = 7;i <= 13;i = i + 1) begin
-							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 7~13
+							x_w[i] = $signed(psum[i - 7][36:0]); // 0~6 to 7~13
 						end
 					end
 					15: begin
@@ -660,12 +656,13 @@ always @(*) begin
 							x_w[i] = $signed(psum[i - 8][36:0]); // 0~6 to 8~14
 						end
 					end
+					default: ;
 				endcase
 			end
 		end
 		S_ADDB: begin
 			for (i = 0;i < 16;i = i + 1) begin
-				psum_49bits  = x_r[i] + $signed({{16{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16], 16'b0})
+				psum_49bits  = x_r[i] + $signed({{16{i_mem_dout[16*i+15]}}, i_mem_dout[16*i +: 16], 16'b0});
 				truncated[i] = $signed(psum_49bits[47:0]);
 				x_w[i]		 = $signed({{5{saturated[i][31]}}, saturated[i]});
 			end
@@ -707,7 +704,7 @@ always @(posedge i_clk or posedge i_reset) begin
 		x15_r			<= 0;
 		for (i = 0; i < 16; i = i + 1) begin
 			x_r[i] 		<= 48'b0;
-			b_r[i] 		<= 0;
+			// b_r[i] 		<= 0;
 		end
 		for (i = 0; i < 7; i = i + 1) begin
 			abuf_r[i]   <= 0;
@@ -726,7 +723,7 @@ always @(posedge i_clk or posedge i_reset) begin
 		x15_r			<= x15_w;
 		for (i = 0; i < 16; i = i + 1) begin
 			x_r[i] 		<= x_w[i];
-			b_r[i] 		<= b_w[i];
+			// b_r[i] 		<= b_w[i];
 		end
 		for (i = 0; i < 7; i = i + 1) begin
 			abuf_r[i]   <= abuf_w[i];
