@@ -18,6 +18,11 @@ module GSIM (                       //Don't modify interface
 	output [  8:0] o_x_addr,
 	output [ 31:0] o_x_data  
 );
+/* GSIM Version 1 Features
+	COMB: 16 multipliers (low utilization rate)
+	SEQ:  x_r[37x16], b_r[16x16]
+	always mem request
+*/
 
 // ---------------------------------------------------------------------------
 // Wires and Registers
