@@ -13,4 +13,4 @@
 
 // design files
 // -----------------------------------------------------------------------------
-../05_APR/Netlist_eps/GSIM_post.v
+../05_APR/Netlist_eps/GSIM_pr.v

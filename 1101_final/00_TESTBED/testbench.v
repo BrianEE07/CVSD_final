@@ -30,13 +30,13 @@
 
 // define SDFFILE and FSDBNAME
 `ifdef epspost
-    `define SDFFILE  "../05_APR/Netlist_eps/GSIM_syn.sdf"
+    `define SDFFILE  "../05_APR/Netlist_eps/GSIM_pr.sdf"
     `define FSDBNAME "gsim_eps.fsdb"
 `elsif epssyn
     `define SDFFILE  "../02_SYN/Netlist_eps/GSIM_syn.sdf"
     `define FSDBNAME "gsim_eps.fsdb"
 `elsif post
-    `define SDFFILE  "../05_APR/Netlist/GSIM_syn.sdf"
+    `define SDFFILE  "../05_APR/Netlist/GSIM_pr.sdf"
     `define FSDBNAME "gsim.fsdb"
 `elsif syn
     `define SDFFILE  "../02_SYN/Netlist/GSIM_syn.sdf"
