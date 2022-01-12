@@ -32,7 +32,7 @@ set sh_line_editing_mode emacs
 history keep 100
 alias h history
 
-read_file -format verilog  "../01_RTL/GSIM.v"
+read_file -format verilog  "../01_RTL/GSIM_v2.v"
 current_design [get_designs $DESIGN]
 link
 
@@ -51,7 +51,8 @@ source eps_phy_cons.tcl
 
 uniquify
 set_fix_multiple_port_nets -all -buffer_constants [get_designs *]
-compile_ultra
+compile_ultra -gate_clock
+report_clock_gating -gating_elements
 
 # Report Output
 current_design [get_designs ${DESIGN}]

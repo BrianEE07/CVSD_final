@@ -96,6 +96,7 @@ end
 // Write out waveform file
 initial begin
 `ifdef VCS
+`elsif NOFSDB
 `elsif PT
   $fsdbDumpfile(`FSDBNAME);
   $fsdbDumpvars(0, "+mda");

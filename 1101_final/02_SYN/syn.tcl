@@ -26,7 +26,7 @@ set sh_line_editing_mode emacs
 history keep 100
 alias h history
 
-read_file -format verilog  "../01_RTL/$DESIGN.v"
+read_file -format verilog  "../01_RTL/{$DESIGN}_v2.v"
 current_design [get_designs $DESIGN]
 link
 
@@ -42,7 +42,8 @@ check_timing > Report/check_timing.txt
 
 uniquify
 set_fix_multiple_port_nets -all -buffer_constants [get_designs *]
-compile
+compile -gate_clock
+report_clock_gating -gating_elements
 
 # Report Output
 current_design [get_designs ${DESIGN}]

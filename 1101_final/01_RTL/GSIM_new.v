@@ -126,7 +126,6 @@ always @(*) begin
 		end
 		S_ADDB:   if (i_mem_dout_vld) state_w = S_CALC_NEW;
 		S_FINISH: if (!i_module_en) state_w = S_IDLE;
-		default: ;
 	endcase
 end
 
@@ -188,7 +187,6 @@ always @(*) begin
 			end
 		end
 		S_FINISH: ;
-		default: ;
 	endcase
 end
 
@@ -605,7 +603,6 @@ always @(*) begin
 						// buffer x15
 						x15_w = x_r[15];
 					end
-					default: ;
 				endcase
 			end
 		end
@@ -757,7 +754,6 @@ always @(*) begin
 							x_w[i]      = $signed(psum[i - 7][36:0]); // 0~6 to 7~13
 						end
 					end
-					default: ;
 				endcase
 			end
 		end
@@ -774,7 +770,6 @@ always @(*) begin
 			end
 		end
 		S_FINISH: o_proc_done_w = i_module_en;
-		default: ;
 	endcase
 end
 
