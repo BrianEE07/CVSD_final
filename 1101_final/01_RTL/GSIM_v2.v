@@ -189,7 +189,7 @@ always @(*) begin
 				end
 			end
 		end
-		S_CALC_FIRST2: col_cnt_w = col_cnt_r + 1;
+		S_CALC_FIRST2: if (i_mem_dout_vld) col_cnt_w = col_cnt_r + 1;
 		S_CALC_TERMS: begin
 			if (i_mem_dout_vld) begin
 				col_cnt_w = col_cnt_r + 1;
