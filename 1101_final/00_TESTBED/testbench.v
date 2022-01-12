@@ -1,5 +1,5 @@
 `timescale 1ns/10ps
-`define CYCLE    15.0          	       // Modify your clock period here
+`define CYCLE    9.5          	       // Modify your clock period here
 // `define SDFFILE  "GSIM_syn.sdf"	       // Modify your sdf file name
 `define MAX_CYCLE   1000000
 `define RST_DELAY   1.25
@@ -255,7 +255,7 @@ end
 // i_mem_rrdy simulation (modify here)
 always @(posedge clk or posedge reset)  begin
     if(reset)    rrdy_r <= 1;
-     else rrdy_r <= 1;// $random;
+     else rrdy_r <= $random;
 end
 
 

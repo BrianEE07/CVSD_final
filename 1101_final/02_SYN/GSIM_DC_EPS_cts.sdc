@@ -3,9 +3,9 @@
 set cycle  9.5         ;#clock period defined by designer
 
 create_clock -period $cycle [get_ports  i_clk]
-set_dont_touch_network      [get_clocks i_clk]
-set_fix_hold                [get_clocks i_clk]
-set_ideal_network           [get_ports i_clk]
+# set_dont_touch_network      [get_clocks i_clk]
+# set_fix_hold                [get_clocks i_clk]
+# set_ideal_network           [get_ports i_clk]
 set_clock_uncertainty  0.1  [get_clocks i_clk]
 set_clock_latency      0.5  [get_clocks i_clk]
 
