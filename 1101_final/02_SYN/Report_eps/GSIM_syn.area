@@ -1,0 +1,30 @@
+ 
+****************************************
+Report : area
+Design : GSIM
+Version: R-2020.09-SP5
+Date   : Wed Jan 12 16:04:53 2022
+****************************************
+
+Library(s) Used:
+
+    slow (File: /home/raid7_2/course/cvsd/CBDK_IC_Contest/CIC/SynopsysDC/db/slow.db)
+
+Number of ports:                          320
+Number of nets:                         40717
+Number of cells:                        38401
+Number of combinational cells:          37056
+Number of sequential cells:              1342
+Number of macros/black boxes:               0
+Number of buf/inv:                       5549
+Number of references:                     165
+
+Combinational area:             379472.443380
+Buf/Inv area:                    31310.240316
+Noncombinational area:           45884.115856
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                425356.559237
+Total area:                 undefined
+1

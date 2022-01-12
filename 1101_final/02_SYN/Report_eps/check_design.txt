@@ -1,0 +1,37 @@
+ 
+****************************************
+check_design summary:
+Version:     R-2020.09-SP5
+Date:        Wed Jan 12 15:46:48 2022
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                      2
+    Unconnected ports (LINT-28)                                     1
+    Constant outputs (LINT-52)                                      1
+
+Cells                                                              17
+    Cells do not drive (LINT-1)                                    17
+--------------------------------------------------------------------------------
+
+Warning: In design 'GSIM', cell 'C72954' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C72967' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73012' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73019' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73022' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73025' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73036' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73039' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73156' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73176' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73210' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73358' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73361' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73364' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73367' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73368' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', cell 'C73435' does not drive any nets. (LINT-1)
+Warning: In design 'GSIM', port 'i_mem_rrdy' is not connected to any nets. (LINT-28)
+Warning: In design 'GSIM', output port 'o_mem_rreq' is connected directly to 'logic 1'. (LINT-52)
+1
